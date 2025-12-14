@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Request, Body
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
 import httpx
@@ -21,8 +21,10 @@ def home(request: Request):
     )
 
 
-@app.get("/generate")
-async def generate_response(prompt: str = Query(...)):
+@app.post("/generate")
+async def generate_response(body: dict = Body(...)):
+    prompt = body.get("prompt", "")
+
     async def generate_stream():
         payload = {
             "model": OLLAMA_MODEL,
