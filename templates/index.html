@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>LLM生成AIプロトタイプ</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+    <form id="prompt-form" hx-post="/generate" hx-target="#result">
+        <textarea id="prompt" name="prompt" rows="5" cols="33"></textarea>
+        <button type="submit">送信</button>
+    </form>
+    <div id="result"></div>
+</body>
+</html>
