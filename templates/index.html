@@ -4,12 +4,45 @@
     <meta charset="UTF-8">
     <title>LLM生成AIプロトタイプ</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
 </head>
 <body>
-    <form id="prompt-form" hx-post="/generate" hx-target="#result">
-        <textarea id="prompt" name="prompt" rows="5" cols="33"></textarea>
-        <button type="submit">送信</button>
+    <form id="prompt-form">
+        <textarea name="prompt" rows="5" cols="33"></textarea>
+        <button type="button" onclick="startStreaming()">送信</button>
     </form>
     <div id="result"></div>
+
+    <script>
+        let currentEventSource = null;
+
+        function startStreaming() {
+            const prompt = document.querySelector('[name="prompt"]').value;
+            const resultDiv = document.getElementById('result');
+
+            // 既存のEventSourceを完全にクローズ
+            if (currentEventSource) {
+                currentEventSource.close();
+            }
+
+            // 結果エリアをクリア
+            resultDiv.innerHTML = '';
+
+            // 新しいEventSourceを作成
+            const url = `/generate?prompt=${encodeURIComponent(prompt)}`;
+            currentEventSource = new EventSource(url);
+
+            currentEventSource.onmessage = function(event) {
+                // 受信したチャンクを追加
+                resultDiv.textContent += event.data;
+            };
+
+            currentEventSource.onerror = function(error) {
+                // エラーまたは接続終了時にクローズ
+                currentEventSource.close();
+                currentEventSource = null;
+            };
+        }
+    </script>
 </body>
 </html>

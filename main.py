@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Query
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-import requests
+from fastapi.responses import StreamingResponse
+import httpx
+import json
 
 
 templates = Jinja2Templates(directory="templates")
@@ -20,19 +21,33 @@ def home(request: Request):
     )
 
 
-@app.post("/generate", response_class=HTMLResponse)
-async def generate_response(prompt: str = Form()):
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False
-    }
+@app.get("/generate")
+async def generate_response(prompt: str = Query(...)):
+    async def generate_stream():
+        payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": True
+        }
 
-    response = requests.post(OLLAMA_URL, json=payload)
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream('POST', OLLAMA_URL, json=payload) as response:
+                    async for line in response.aiter_lines():
+                        if line.strip():
+                            data = json.loads(line)
+                            chunk = data.get("response", "")
+                            if chunk:
+                                # SSE形式で送信
+                                yield f"data: {chunk}\n\n"
 
-    if response.status_code == 200:
-        generated_text = response.json()["response"]
-    else:
-        generated_text = "エラーが発生しました。"
-    
-    return f"<div>{generated_text}</div>"
+                            # Ollamaのストリーミング完了を検出
+                            if data.get("done", False):
+                                break
+        except Exception as e:
+            yield f"data: エラーが発生しました: {str(e)}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream"
+    )
